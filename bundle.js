@@ -437,7 +437,8 @@ require.define("/requirebin/package.json",function(require,module,exports,__dirn
 
 require.define("/requirebin/config.json",function(require,module,exports,__dirname,__filename,process,global){module.exports = module.exports = {
   GITHUB_CLIENT: 'f7b1530b019cbb2619d5',
-  GATEKEEPER: 'http://maxogden-gatekeeper.nodejitsu.com'
+  GATEKEEPER: 'http://maxogden-gatekeeper.nodejitsu.com',
+  BROWSERIFYCDN: 'http://wzrd.in'
 };
 
 });
@@ -27836,7 +27837,7 @@ loadCode(function(err, code) {
   editor.setValue(code)
   
   var sandbox = createSandbox({
-    cdn: 'http://wzrd.in',
+    cdn: config.BROWSERIFYCDN,
     container: outputEl
   })
 
