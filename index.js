@@ -25,6 +25,10 @@ if (parsedURL.query.gist) {
   var gistID = parsedURL.query.gist
   enableShare(gistID)
 }
+else if (parsedURL.hash){
+  var gistID = parsedURL.hash.replace("#", "")
+  enableShare(gistID)
+}
 
 var loadingClass = elementClass(document.querySelector('.loading'))
 var outputEl = document.querySelector('#play')
@@ -52,10 +56,10 @@ function loadCode(cb) {
       cb(false, json.files['index.js'].content)
     })
   }
-  
+
   var stored = localStorage.getItem('code')
   if (stored) return cb(false, stored)
-  
+
   // todo read from template/file/server
   var defaultGame = document.querySelector('#template').innerText
   cb(false, defaultGame)
@@ -63,16 +67,16 @@ function loadCode(cb) {
 
 loadCode(function(err, code) {
   if (err) return alert(JSON.stringify(err))
-  
+
   var editor = jsEditor({
     container: editorEl,
     lineWrapping: true
   })
-  
+
   window.editor = editor
-  
+
   if (code) editor.setValue(code)
-  
+
   var sandbox = createSandbox({
     cdn: config.BROWSERIFYCDN,
     container: outputEl,
@@ -92,13 +96,13 @@ loadCode(function(err, code) {
   var textBox = document.querySelector("#shareTextarea")
 
   var packageTags = $(".tagsinput")
-  
+
   editor.on('valid', function(valid) {
     if (!valid) return
     packageTags.html('')
     var modules = detective(editor.editor.getValue())
     modules.map(function(module) {
-      var tag = 
+      var tag =
         '<span class="tag"><a target="_blank" href="http://npmjs.org/' +
           module + '"><span>' + module + '&nbsp;&nbsp;</span></a></span>'
       packageTags.append(tag)
@@ -116,7 +120,7 @@ loadCode(function(err, code) {
       }, 0)
     }
   })
-  
+
   $(".actionsButtons a").click(function() {
     var target = $(this)
     var action = target.attr('data-action')
@@ -124,7 +128,7 @@ loadCode(function(err, code) {
     target.siblings().removeClass("active")
     target.addClass("active")
   })
-  
+
   var actions = {
     play: function() {
       elementClass(howTo).add('hidden')
@@ -146,7 +150,7 @@ loadCode(function(err, code) {
     save: function() {
       if (loggedIn) return saveGist(gistID)
       loadingClass.remove('hidden')
-      var loginURL = "https://github.com/login/oauth/authorize" + 
+      var loginURL = "https://github.com/login/oauth/authorize" +
         "?client_id=" + config.GITHUB_CLIENT +
         "&scope=repo, user, gist" +
         "&redirect_uri=" + window.location.href
@@ -179,11 +183,11 @@ loadCode(function(err, code) {
       elementClass(share).remove('hidden')
     }
   }
-  
+
   function authenticate() {
     if (cookie.get('oauth-token')) return loggedIn = true
     var match = window.location.href.match(/\?code=([a-z0-9]*)/)
-    
+
     // Handle Code
     if (!match) return false
     var authURL = config.GATEKEEPER + '/authenticate/' + match[1]
@@ -196,42 +200,44 @@ loadCode(function(err, code) {
       var regex = new RegExp("\\?code=" + match[1])
       window.location.href = window.location.href.replace(regex, '').replace('&state=', '') + '?save=true'
     })
-    
+
     return true
   }
-  
+
   sandbox.on('bundleStart', function() {
     crosshair.style.display = 'block'
     crosshairClass.add('spinning')
   })
-  
+
   sandbox.on('bundleEnd', function(bundle) {
     crosshairClass.remove('spinning')
     crosshair.style.display = 'none'
+    if (!bundle)
+      tooltipMessage('error', 'There was an issue loading the modules')
   })
-  
+
   sandbox.on('modules', function(modules) {
     // TODO show package.json editor
   })
-  
+
   if (!gistID) {
     editor.on("change", function() {
       var code = editor.editor.getValue()
       localStorage.setItem('code', code)
     })
   }
-  
+
   function saveGist(id, opts) {
     var entry = editor.editor.getValue()
     opts = opts || {}
     opts.isPublic = 'isPublic' in opts ? opts.isPublic : true
 
     sandbox.bundle(entry)
-    sandbox.once('bundleEnd', function(bundle) {
+    sandbox.on('bundleEnd', function(bundle) {
       loadingClass.remove('hidden')
       var minified = UglifyJS.minify(bundle.script)
       var gist = {
-       "description": "made with requirebin.com",
+       "description": "requirebin sketch",
          "public": opts.isPublic,
          "files": {
            "index.js": {
@@ -242,14 +248,69 @@ loadCode(function(err, code) {
            },
            "page-head.html": {
              "content": bundle.head
-           }
+           },
+           "requirebin.md": {
+             "content": "view on [requirebin](http://requirebin.com?gist=" + id + ")"
+           }// ,
+           // "package.json": {
+           //   "content": JSON.stringify(packagejson)
+           // }
          }
       }
-      github.getGist().create(gist, function(err, data) {
-        loadingClass.add('hidden')
-        if (err) return alert(JSON.stringify(err))
-        window.location.href = "/?gist=" + data.id
-      })
+      github.getGist(id).read(function (err) {
+        if (err && err.error === 404) {
+          github.getGist().create(gist, function(err, data) {
+            loadingClass.add('hidden')
+            if (err) return alert(JSON.stringify(err))
+            window.location.href = "/?gist=" + data.id
+          })
+          return
+        }
+        if (err) return alert('get error' + JSON.stringify(err));
+        github.getGist(id).update(gist, function (err, data) {
+          if (!err) return loadingClass.add('hidden')
+          if (err && err.error === 404) {
+            github.getGist(id).fork(function (err, data) {
+              if (err) return alert(JSON.stringify(err))
+              github.getGist(data.id).update(gist, function (err, data) {
+                loadingClass.add('hidden')
+                if (err) return alert(JSON.stringify(err))
+                window.location.href = "/?gist=" + data.id
+              })
+            })
+            return
+          }
+          if (err) return alert('update err' + JSON.stringify(err));
+        })
+      });
     })
   }
 })
+
+/*
+  display error/warning messages in the site header
+  cssClass should be a default bootstrap class
+  .warning .alert .info .success
+  text is the message content
+*/
+function tooltipMessage(cssClass, text) {
+  var message = document.querySelector('.alert')
+  if (message) {
+    message.classList.remove('hidden')
+    message.classList.add('alert-'+cssClass)
+    message.innerHTML = text
+  } else {
+    message = document.createElement('div')
+    message.classList.add('alert')
+    var close = document.createElement('span')
+    close.classList.add('pull-right')
+    close.innerHTML = '&times;'
+    close.addEventListener('click', function () {
+      this.parentNode.classList.add('hidden')
+    }, false)
+    message.classList.add('alert-'+cssClass)
+    message.innerHTML = text
+    document.querySelector('body').appendChild(message)
+    message.appendChild(close)
+  }
+}

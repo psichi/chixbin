@@ -1,6 +1,6 @@
 {
   "name": "requirebin",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "description": "create programs in the browser using modules from NPM",
   "scripts": {
     "start": "beefy embed.js:embed-bundle.js index.js:bundle.js 8080",
@@ -26,6 +26,7 @@
     "node": ">=0.8.x"
   },
   "devDependencies": {
-    "browserify": "~2.23.1"
+    "browserify": "~2.23.1",
+    "beefy": "~0.4.0"
   }
 }
