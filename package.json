@@ -18,15 +18,14 @@
     "browser-module-sandbox": "~1.2.1",
     "github-oauth": "0.0.4",
     "concat-stream": "1.0.0",
-    "browser-request": "0.2.0",
     "github-api": "0.7.0",
-    "detective": "~2.1.2"
+    "detective": "~2.1.2",
+    "browser-request": "~0.2.1"
   },
   "engines": {
     "node": ">=0.8.x"
   },
   "devDependencies": {
-    "browserify": "~2.23.1",
     "beefy": "~0.4.0"
   }
 }
