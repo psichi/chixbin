@@ -18,9 +18,9 @@
     "browser-module-sandbox": "~1.2.1",
     "github-oauth": "0.0.4",
     "concat-stream": "1.0.0",
+    "browser-request": "git://github.com/maxogden/browser-request.git",
     "github-api": "0.7.0",
-    "detective": "~2.1.2",
-    "browser-request": "~0.2.1"
+    "detective": "~2.1.2"
   },
   "engines": {
     "node": ">=0.8.x"
