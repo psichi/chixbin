@@ -632,7 +632,84 @@ jsonp('https://api.github.com/gists/' + gistID, function(err, gist) {
   _eval(minified)
 })
 
-},{"jsonp":4,"url":1}],2:[function(require,module,exports){
+},{"jsonp":4,"url":1}],4:[function(require,module,exports){
+
+/**
+ * Module exports.
+ */
+
+module.exports = jsonp;
+
+/**
+ * Callback index.
+ */
+
+var count = 0;
+
+/**
+ * Noop function.
+ */
+
+function noop(){};
+
+/**
+ * JSONP handler
+ *
+ * Options:
+ *  - param {String} qs parameter (`callback`)
+ *  - timeout {Number} how long after a timeout error is emitted (`60000`)
+ *
+ * @param {String} url
+ * @param {Object|Function} optional options / callback
+ * @param {Function} optional callback
+ */
+
+function jsonp(url, opts, fn){
+  if ('function' == typeof opts) {
+    fn = opts;
+    opts = {};
+  }
+
+  var opts = opts || {};
+  var param = opts.param || 'callback';
+  var timeout = null != opts.timeout ? opts.timeout : 60000;
+  var enc = encodeURIComponent;
+  var target = document.getElementsByTagName('script')[0];
+  var script;
+  var timer;
+
+  // generate a unique id for this request
+  var id = count++;
+
+  if (timeout) {
+    timer = setTimeout(function(){
+      cleanup();
+      fn && fn(new Error('Timeout'));
+    }, timeout);
+  }
+
+  function cleanup(){
+    target.parentNode.removeChild(script);
+    window['__jp' + id] = noop;
+  }
+
+  window['__jp' + id] = function(data){
+    if (timer) clearTimeout(timer);
+    cleanup();
+    fn && fn(null, data);
+  };
+
+  // add qs component
+  url += (~url.indexOf('?') ? '&' : '?') + param + '=' + enc('__jp' + id + '');
+  url = url.replace('?&', '?');
+
+  // create script
+  script = document.createElement('script');
+  script.src = url;
+  target.parentNode.insertBefore(script, target);
+};
+
+},{}],2:[function(require,module,exports){
 
 /**
  * Object#toString() ref for stringify().
@@ -950,218 +1027,6 @@ function decode(str) {
     return str;
   }
 }
-
-},{}],4:[function(require,module,exports){
-
-/**
- * Module dependencies
- */
-
-var debug = require('debug')('jsonp');
-
-/**
- * Module exports.
- */
-
-module.exports = jsonp;
-
-/**
- * Callback index.
- */
-
-var count = 0;
-
-/**
- * Noop function.
- */
-
-function noop(){};
-
-/**
- * JSONP handler
- *
- * Options:
- *  - param {String} qs parameter (`callback`)
- *  - timeout {Number} how long after a timeout error is emitted (`60000`)
- *
- * @param {String} url
- * @param {Object|Function} optional options / callback
- * @param {Function} optional callback
- */
-
-function jsonp(url, opts, fn){
-  if ('function' == typeof opts) {
-    fn = opts;
-    opts = {};
-  }
-
-  var opts = opts || {};
-  var param = opts.param || 'callback';
-  var timeout = null != opts.timeout ? opts.timeout : 60000;
-  var enc = encodeURIComponent;
-  var target = document.getElementsByTagName('script')[0];
-  var script;
-  var timer;
-
-  // generate a unique id for this request
-  var id = count++;
-
-  if (timeout) {
-    timer = setTimeout(function(){
-      cleanup();
-      fn && fn(new Error('Timeout'));
-    }, timeout);
-  }
-
-  function cleanup(){
-    target.parentNode.removeChild(script);
-    window['__jp' + id] = noop;
-  }
-
-  window['__jp' + id] = function(data){
-    debug('jsonp got', data);
-    if (timer) clearTimeout(timer);
-    cleanup();
-    fn && fn(null, data);
-  };
-
-  // add qs component
-  url += (~url.indexOf('?') ? '&' : '?') + param + '=' + enc('__jp' + id + '');
-  url = url.replace('?&', '?');
-
-  debug('jsonp req "%s"', url);
-
-  // create script
-  script = document.createElement('script');
-  script.src = url;
-  target.parentNode.insertBefore(script, target);
-};
-
-},{"debug":5}],5:[function(require,module,exports){
-
-/**
- * Expose `debug()` as the module.
- */
-
-module.exports = debug;
-
-/**
- * Create a debugger with the given `name`.
- *
- * @param {String} name
- * @return {Type}
- * @api public
- */
-
-function debug(name) {
-  if (!debug.enabled(name)) return function(){};
-
-  return function(fmt){
-    var curr = new Date;
-    var ms = curr - (debug[name] || curr);
-    debug[name] = curr;
-
-    fmt = name
-      + ' '
-      + fmt
-      + ' +' + debug.humanize(ms);
-
-    // This hackery is required for IE8
-    // where `console.log` doesn't have 'apply'
-    window.console
-      && console.log
-      && Function.prototype.apply.call(console.log, console, arguments);
-  }
-}
-
-/**
- * The currently active debug mode names.
- */
-
-debug.names = [];
-debug.skips = [];
-
-/**
- * Enables a debug mode by name. This can include modes
- * separated by a colon and wildcards.
- *
- * @param {String} name
- * @api public
- */
-
-debug.enable = function(name) {
-  try {
-    localStorage.debug = name;
-  } catch(e){}
-
-  var split = (name || '').split(/[\s,]+/)
-    , len = split.length;
-
-  for (var i = 0; i < len; i++) {
-    name = split[i].replace('*', '.*?');
-    if (name[0] === '-') {
-      debug.skips.push(new RegExp('^' + name.substr(1) + '$'));
-    }
-    else {
-      debug.names.push(new RegExp('^' + name + '$'));
-    }
-  }
-};
-
-/**
- * Disable debug output.
- *
- * @api public
- */
-
-debug.disable = function(){
-  debug.enable('');
-};
-
-/**
- * Humanize the given `ms`.
- *
- * @param {Number} m
- * @return {String}
- * @api private
- */
-
-debug.humanize = function(ms) {
-  var sec = 1000
-    , min = 60 * 1000
-    , hour = 60 * min;
-
-  if (ms >= hour) return (ms / hour).toFixed(1) + 'h';
-  if (ms >= min) return (ms / min).toFixed(1) + 'm';
-  if (ms >= sec) return (ms / sec | 0) + 's';
-  return ms + 'ms';
-};
-
-/**
- * Returns true if the given mode name is enabled, false otherwise.
- *
- * @param {String} name
- * @return {Boolean}
- * @api public
- */
-
-debug.enabled = function(name) {
-  for (var i = 0, len = debug.skips.length; i < len; i++) {
-    if (debug.skips[i].test(name)) {
-      return false;
-    }
-  }
-  for (var i = 0, len = debug.names.length; i < len; i++) {
-    if (debug.names[i].test(name)) {
-      return true;
-    }
-  }
-  return false;
-};
-
-// persist
-
-if (window.localStorage) debug.enable(localStorage.debug);
 
 },{}]},{},[3])
 ;
