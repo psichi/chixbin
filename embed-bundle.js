@@ -1,4 +1,49 @@
 ;(function(e,t,n){function i(n,s){if(!t[n]){if(!e[n]){var o=typeof require=="function"&&require;if(!s&&o)return o(n,!0);if(r)return r(n,!0);throw new Error("Cannot find module '"+n+"'")}var u=t[n]={exports:{}};e[n][0].call(u.exports,function(t){var r=e[n][1][t];return i(r?r:t)},u,u.exports)}return t[n].exports}var r=typeof require=="function"&&require;for(var s=0;s<n.length;s++)i(n[s]);return i})({1:[function(require,module,exports){
+var jsonp = require('jsonp')
+var url = require('url')
+
+var parsedURL = url.parse(window.location.href, true)
+var gistID = parsedURL.query.gist
+
+var binURL = "/?gist=" + gistID
+var link = document.querySelector('.requirebin-link')
+if (link) link.setAttribute('href', binURL)
+
+if (gistID.indexOf('/') > -1) loadRaw(gistID)
+else loadFromAPI(gistID)
+
+function loadFromAPI(gistID) {
+  jsonp('https://api.github.com/gists/' + gistID, function(err, gist) {
+    if (err) return console.log(err)
+    var files = gist.data.files
+    
+    var headFile = files['page-head.html']
+    if (!headFile) headFile = files['head.html']
+    if (headFile) var head = headFile.content
+    
+    var minFile = files['minified.js']
+    if (minFile) var bundle = minFile.content
+    render(head, bundle)
+  })
+}
+
+function loadRaw(gistID) {
+  var bundleURL = "https://gist.githubusercontent.com/" + gistID + "/raw/minified.js"
+  var script = document.createElement('script')
+  script.setAttribute('src', bundleURL)
+  document.head.appendChild(script)
+}
+
+
+function render(head, bundle) {
+  if (head) document.head.innerHTML += head
+  
+  if (!bundle) bundle = "document.body.innerHTML += 'not a valid requirebin gist - missing minified.js'"
+  
+  _eval = eval
+  _eval(bundle)
+}
+},{"jsonp":3,"url":2}],2:[function(require,module,exports){
 var punycode = { encode : function (s) { return s } };
 
 exports.parse = urlParse;
@@ -604,52 +649,7 @@ function parseHost(host) {
   return out;
 }
 
-},{"querystring":2}],3:[function(require,module,exports){
-var jsonp = require('jsonp')
-var url = require('url')
-
-var parsedURL = url.parse(window.location.href, true)
-var gistID = parsedURL.query.gist
-
-var binURL = "/?gist=" + gistID
-var link = document.querySelector('.requirebin-link')
-if (link) link.setAttribute('href', binURL)
-
-if (gistID.indexOf('/') > -1) loadRaw(gistID)
-else loadFromAPI(gistID)
-
-function loadFromAPI(gistID) {
-  jsonp('https://api.github.com/gists/' + gistID, function(err, gist) {
-    if (err) return console.log(err)
-    var files = gist.data.files
-    
-    var headFile = files['page-head.html']
-    if (!headFile) headFile = files['head.html']
-    if (headFile) var head = headFile.content
-    
-    var minFile = files['minified.js']
-    if (minFile) var bundle = minFile.content
-    render(head, bundle)
-  })
-}
-
-function loadRaw(gistID) {
-  var bundleURL = "https://gist.githubusercontent.com/" + gistID + "/raw/minified.js"
-  var script = document.createElement('script')
-  script.setAttribute('src', bundleURL)
-  document.head.appendChild(script)
-}
-
-
-function render(head, bundle) {
-  if (head) document.head.innerHTML += head
-  
-  if (!bundle) bundle = "document.body.innerHTML += 'not a valid requirebin gist - missing minified.js'"
-  
-  _eval = eval
-  _eval(bundle)
-}
-},{"jsonp":4,"url":1}],2:[function(require,module,exports){
+},{"querystring":4}],4:[function(require,module,exports){
 
 /**
  * Object#toString() ref for stringify().
@@ -968,7 +968,13 @@ function decode(str) {
   }
 }
 
-},{}],4:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
+
+/**
+ * Module dependencies
+ */
+
+var debug = require('debug')('jsonp');
 
 /**
  * Module exports.
@@ -1030,6 +1036,7 @@ function jsonp(url, opts, fn){
   }
 
   window['__jp' + id] = function(data){
+    debug('jsonp got', data);
     if (timer) clearTimeout(timer);
     cleanup();
     fn && fn(null, data);
@@ -1039,11 +1046,152 @@ function jsonp(url, opts, fn){
   url += (~url.indexOf('?') ? '&' : '?') + param + '=' + enc('__jp' + id + '');
   url = url.replace('?&', '?');
 
+  debug('jsonp req "%s"', url);
+
   // create script
   script = document.createElement('script');
   script.src = url;
   target.parentNode.insertBefore(script, target);
 };
 
-},{}]},{},[3])
+},{"debug":5}],5:[function(require,module,exports){
+
+/**
+ * Expose `debug()` as the module.
+ */
+
+module.exports = debug;
+
+/**
+ * Create a debugger with the given `name`.
+ *
+ * @param {String} name
+ * @return {Type}
+ * @api public
+ */
+
+function debug(name) {
+  if (!debug.enabled(name)) return function(){};
+
+  return function(fmt){
+    fmt = coerce(fmt);
+
+    var curr = new Date;
+    var ms = curr - (debug[name] || curr);
+    debug[name] = curr;
+
+    fmt = name
+      + ' '
+      + fmt
+      + ' +' + debug.humanize(ms);
+
+    // This hackery is required for IE8
+    // where `console.log` doesn't have 'apply'
+    window.console
+      && console.log
+      && Function.prototype.apply.call(console.log, console, arguments);
+  }
+}
+
+/**
+ * The currently active debug mode names.
+ */
+
+debug.names = [];
+debug.skips = [];
+
+/**
+ * Enables a debug mode by name. This can include modes
+ * separated by a colon and wildcards.
+ *
+ * @param {String} name
+ * @api public
+ */
+
+debug.enable = function(name) {
+  try {
+    localStorage.debug = name;
+  } catch(e){}
+
+  var split = (name || '').split(/[\s,]+/)
+    , len = split.length;
+
+  for (var i = 0; i < len; i++) {
+    name = split[i].replace('*', '.*?');
+    if (name[0] === '-') {
+      debug.skips.push(new RegExp('^' + name.substr(1) + '$'));
+    }
+    else {
+      debug.names.push(new RegExp('^' + name + '$'));
+    }
+  }
+};
+
+/**
+ * Disable debug output.
+ *
+ * @api public
+ */
+
+debug.disable = function(){
+  debug.enable('');
+};
+
+/**
+ * Humanize the given `ms`.
+ *
+ * @param {Number} m
+ * @return {String}
+ * @api private
+ */
+
+debug.humanize = function(ms) {
+  var sec = 1000
+    , min = 60 * 1000
+    , hour = 60 * min;
+
+  if (ms >= hour) return (ms / hour).toFixed(1) + 'h';
+  if (ms >= min) return (ms / min).toFixed(1) + 'm';
+  if (ms >= sec) return (ms / sec | 0) + 's';
+  return ms + 'ms';
+};
+
+/**
+ * Returns true if the given mode name is enabled, false otherwise.
+ *
+ * @param {String} name
+ * @return {Boolean}
+ * @api public
+ */
+
+debug.enabled = function(name) {
+  for (var i = 0, len = debug.skips.length; i < len; i++) {
+    if (debug.skips[i].test(name)) {
+      return false;
+    }
+  }
+  for (var i = 0, len = debug.names.length; i < len; i++) {
+    if (debug.names[i].test(name)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * Coerce `val`.
+ */
+
+function coerce(val) {
+  if (val instanceof Error) return val.stack || val.message;
+  return val;
+}
+
+// persist
+
+try {
+  if (window.localStorage) debug.enable(localStorage.debug);
+} catch(e){}
+
+},{}]},{},[1])
 ;
