@@ -9,8 +9,7 @@ var binURL = "/?gist=" + gistID
 var link = document.querySelector('.requirebin-link')
 if (link) link.setAttribute('href', binURL)
 
-if (gistID.indexOf('/') > -1) loadRaw(gistID)
-else loadFromAPI(gistID)
+loadFromAPI(gistID)
 
 function loadFromAPI(gistID) {
   jsonp('https://api.github.com/gists/' + gistID, function(err, gist) {
@@ -27,6 +26,7 @@ function loadFromAPI(gistID) {
   })
 }
 
+// deprecated since chrome 35 https://code.google.com/p/chromium/issues/detail?id=180007
 function loadRaw(gistID) {
   var bundleURL = "https://gist.githubusercontent.com/" + gistID + "/raw/minified.js"
   var script = document.createElement('script')
