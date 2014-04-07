@@ -1,5 +1,5 @@
 module.exports = {
-  GITHUB_CLIENT: 'f7b1530b019cbb2619d5',
-  GATEKEEPER: 'http://gatekeeper.maxogden.com',
-  BROWSERIFYCDN: 'http://wzrd.in'
+  GITHUB_CLIENT: 'cdb5426a4b59ff27f7b8',
+  GATEKEEPER: 'http://chixbin.herokuapp.com',
+  BROWSERIFYCDN: 'http://cdn.chix.io'
 }
